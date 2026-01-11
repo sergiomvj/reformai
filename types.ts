@@ -7,16 +7,37 @@ export interface SubTask {
 
 export type Priority = 'Alta' | 'Média' | 'Baixa';
 
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+}
+
+export interface Project {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  address?: string;
+  status: 'active' | 'completed' | 'archived';
+  created_at: string;
+}
+
 export interface Task {
   id: string;
+  project_id: string;
+  category_id?: string;
+  user_id: string;
   title: string;
   description: string;
   room: string;
   priority: Priority;
   status: 'pending' | 'completed';
-  subTasks: SubTask[];
+  subTasks: SubTask[]; // Voltei para camelCase para manter compatibilidade com o código atual
   photos?: string[];
-  videoUrl?: string;
+  video_url?: string;
+  created_at?: string;
 }
 
 export interface OptimizedTask extends Task {
@@ -40,6 +61,8 @@ export interface OptimizationResult {
 
 export interface HistoryEntry {
   id: string;
+  user_id: string;
+  project_id?: string;
   timestamp: number;
   user: string;
   action: string;

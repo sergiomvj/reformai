@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  reformai:
+    build: .
+    container_name: reformai_app
+    ports:
+      - "8080:80"
+    environment:
+      - VITE_GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: always
