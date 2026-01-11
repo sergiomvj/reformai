@@ -85,7 +85,9 @@ export const translations = {
         existingProjects: "Projetos Atuais",
         addNewProject: "Novo Projeto",
         importProject: "Importar Obra (JSON)",
-        exportProject: "Exportar Obra (JSON)"
+        exportProject: "Exportar Obra (JSON)",
+        backupRestore: "Backup e Restauração",
+        dataManagement: "Gestão de Dados"
     },
     'en': {
         consolidationStatus: "Consolidation Status",
@@ -172,7 +174,9 @@ export const translations = {
         existingProjects: "Current Projects",
         addNewProject: "New Project",
         importProject: "Import Work (JSON)",
-        exportProject: "Export Work (JSON)"
+        exportProject: "Export Work (JSON)",
+        backupRestore: "Backup & Restore",
+        dataManagement: "Data Management"
     },
     'sp': {
         consolidationStatus: "Estado de Consolidación",
@@ -259,7 +263,9 @@ export const translations = {
         existingProjects: "Proyectos Actuales",
         addNewProject: "Nuevo Proyecto",
         importProject: "Importar Obra (JSON)",
-        exportProject: "Exportar Obra (JSON)"
+        exportProject: "Exportar Obra (JSON)",
+        backupRestore: "Backup y Restauración",
+        dataManagement: "Gestión de Dados"
     }
 };
 

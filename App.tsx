@@ -481,7 +481,7 @@ const App: React.FC = () => {
       {/* Modais */}
       {showProjectModal && (
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-200">
+          <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg md:text-xl font-black text-slate-800 uppercase">{translations[lang].newProject}</h3>
               <button onClick={() => setShowProjectModal(false)}><X className="text-slate-300 w-5 h-5 md:w-6 md:h-6" /></button>
@@ -498,8 +498,8 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            <div className="space-y-3 pt-2 border-t border-slate-50">
-              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations[lang].workLog || 'Gestão de Dados'}</p>
+            <div className="space-y-3 pt-4 border-t border-slate-50">
+              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations[lang].backupRestore}</p>
               <div className="flex gap-2">
                 <button
                   onClick={exportProject}
@@ -635,7 +635,30 @@ const App: React.FC = () => {
                   >
                     <History className="w-3.5 h-3.5 md:w-4 md:h-4" /> {translations[lang].workLog}
                   </button>
-                  <div className="text-right flex-shrink-0">
+
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={exportProject}
+                      className="flex-1 sm:flex-none p-2 bg-slate-800 text-amber-500 rounded-xl hover:bg-slate-700 transition-all"
+                      title={translations[lang].exportProject}
+                    >
+                      <Download className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                    <div className="flex-1 sm:flex-none relative">
+                      <input
+                        type="file" accept=".json" onChange={handleImport}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                      <button
+                        className="w-full h-full p-2 bg-slate-800 text-amber-500 rounded-xl hover:bg-slate-700 transition-all"
+                        title={translations[lang].importProject}
+                      >
+                        <Upload className="w-4 h-4 md:w-5 md:h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex-shrink-0 hidden xs:block">
                     <p className="text-4xl md:text-5xl font-black text-amber-500 leading-none">{stats.totalProgress}%</p>
                     <p className="text-[8px] md:text-[9px] text-slate-500 uppercase font-black tracking-tighter">{translations[lang].totalExecution}</p>
                   </div>
