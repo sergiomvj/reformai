@@ -37,3 +37,12 @@ export interface OptimizationResult {
   totalEstimatedDays: number;
   generalAdvice: string;
 }
+
+export interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  user: string;
+  action: string;
+  details: string;
+  type: 'creation' | 'update' | 'completion' | 'optimization' | 'deletion';
+}

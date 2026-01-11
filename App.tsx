@@ -1,20 +1,24 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Task, OptimizationResult, Priority, SubTask } from './types';
+import { Task, OptimizationResult, Priority, SubTask, HistoryEntry } from './types';
 import { optimizeRenovation, OptimizationStrategy } from './services/gemini';
-import { HardHat, Plus, Hammer, Trash, CheckCircle, Sparkles, Download, FileSpreadsheet, Edit3, X, TrendingUp, Video, Camera, LogIn, LogOut } from './components/Icons';
+import { HardHat, Plus, Hammer, Trash, CheckCircle, Sparkles, Download, FileSpreadsheet, Edit3, X, TrendingUp, Video, Camera, LogIn, LogOut, History } from './components/Icons';
 
 // --- Utilitários de Banco de Dados (IndexedDB) ---
 const DB_NAME = 'MestreObraDB_VFinal';
-const STORE_NAME = 'tasks_store';
+const TASKS_STORE = 'tasks_store';
+const HISTORY_STORE = 'history_store';
 
 const initDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 4);
-    request.onupgradeneeded = () => {
+    const request = indexedDB.open(DB_NAME, 5); // Bumped version for new store
+    request.onupgradeneeded = (event) => {
       const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(TASKS_STORE)) {
+        db.createObjectStore(TASKS_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(HISTORY_STORE)) {
+        db.createObjectStore(HISTORY_STORE, { keyPath: 'id' });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -24,18 +28,37 @@ const initDB = (): Promise<IDBDatabase> => {
 
 const saveTasksToDB = async (tasks: Task[]) => {
   const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
+  const tx = db.transaction(TASKS_STORE, 'readwrite');
+  const store = tx.objectStore(TASKS_STORE);
   store.clear();
   tasks.forEach(task => store.put(task));
+  return new Promise((resolve) => tx.oncomplete = resolve);
+};
+
+const saveHistoryToDB = async (history: HistoryEntry[]) => {
+  const db = await initDB();
+  const tx = db.transaction(HISTORY_STORE, 'readwrite');
+  const store = tx.objectStore(HISTORY_STORE);
+  store.clear();
+  history.forEach(entry => store.put(entry));
   return new Promise((resolve) => tx.oncomplete = resolve);
 };
 
 const loadTasksFromDB = async (): Promise<Task[]> => {
   const db = await initDB();
   return new Promise((resolve) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
+    const tx = db.transaction(TASKS_STORE, 'readonly');
+    const store = tx.objectStore(TASKS_STORE);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+  });
+};
+
+const loadHistoryFromDB = async (): Promise<HistoryEntry[]> => {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(HISTORY_STORE, 'readonly');
+    const store = tx.objectStore(HISTORY_STORE);
     const request = store.getAll();
     request.onsuccess = () => resolve(request.result);
   });
@@ -83,8 +106,10 @@ const TASK_SUGGESTIONS = [
 
 const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loadingDB, setLoadingDB] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Simulação de estado de login
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [lang, setLang] = useState('pt-br');
   const [newTask, setNewTask] = useState<{title: string, room: string, description: string, priority: Priority}>({ 
     title: '', room: '', description: '', priority: 'Média' 
   });
@@ -95,6 +120,7 @@ const App: React.FC = () => {
   const [videoData, setVideoData] = useState<string | null>(null);
   const [isProcessingVideo, setIsProcessingVideo] = useState(false);
   const [showDashboard, setShowDashboard] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const [manualSubTask, setManualSubTask] = useState('');
 
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -102,15 +128,33 @@ const App: React.FC = () => {
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadTasksFromDB().then(saved => {
-      setTasks(saved);
+    Promise.all([loadTasksFromDB(), loadHistoryFromDB()]).then(([savedTasks, savedHistory]) => {
+      setTasks(savedTasks);
+      setHistory(savedHistory.sort((a, b) => b.timestamp - a.timestamp));
       setLoadingDB(false);
     });
   }, []);
 
   useEffect(() => {
-    if (!loadingDB) saveTasksToDB(tasks);
-  }, [tasks, loadingDB]);
+    if (!loadingDB) {
+      saveTasksToDB(tasks);
+      saveHistoryToDB(history);
+    }
+  }, [tasks, history, loadingDB]);
+
+  const currentUser = isLoggedIn ? "Mestre" : "Visitante";
+
+  const addHistoryEntry = (type: HistoryEntry['type'], action: string, details: string) => {
+    const entry: HistoryEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: Date.now(),
+      user: currentUser,
+      type,
+      action,
+      details
+    };
+    setHistory(prev => [entry, ...prev].slice(0, 100)); // Keep last 100 entries
+  };
 
   // --- Consolidação e Cálculo de Progresso ---
   const calculateTaskProgress = (task: Task) => {
@@ -175,6 +219,8 @@ const App: React.FC = () => {
     };
 
     setTasks(prev => [...prev, task]);
+    addHistoryEntry('creation', 'Nova tarefa adicionada', `${task.title} em ${task.room}`);
+    
     setNewTask({ title: '', room: newTask.room, description: '', priority: 'Média' }); 
     setPhotoFiles([]);
     setVideoData(null);
@@ -184,18 +230,40 @@ const App: React.FC = () => {
   const toggleSubTask = (taskId: string, subTaskId: string) => {
     setTasks(prev => prev.map(t => {
       if (t.id === taskId) {
-        const newSubTasks = t.subTasks.map(st => st.id === subTaskId ? { ...st, completed: !st.completed } : st);
+        const subTask = t.subTasks.find(st => st.id === subTaskId);
+        const newState = !subTask?.completed;
+        const newSubTasks = t.subTasks.map(st => st.id === subTaskId ? { ...st, completed: newState } : st);
         const allDone = newSubTasks.length > 0 && newSubTasks.every(st => st.completed);
+        
+        addHistoryEntry(
+          newState ? 'completion' : 'update', 
+          newState ? 'Sub-etapa concluída' : 'Sub-etapa reaberta', 
+          `${subTask?.title} - ${t.title} (${t.room})`
+        );
+
+        if (allDone && t.status !== 'completed') {
+          addHistoryEntry('completion', 'Tarefa finalizada', `${t.title} em ${t.room}`);
+        }
+
         return { ...t, subTasks: newSubTasks, status: allDone ? 'completed' : 'pending' };
       }
       return t;
     }));
   };
 
+  const deleteTask = (taskId: string) => {
+    const taskToDelete = tasks.find(t => t.id === taskId);
+    if (taskToDelete && confirm(`Remover registro: ${taskToDelete.title}?`)) {
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      addHistoryEntry('deletion', 'Tarefa removida', `${taskToDelete.title} em ${taskToDelete.room}`);
+    }
+  };
+
   const addManualSubTask = (taskId: string) => {
     if (!manualSubTask) return;
     setTasks(prev => prev.map(t => {
       if (t.id === taskId) {
+        addHistoryEntry('update', 'Etapa manual adicionada', `${manualSubTask} para ${t.title}`);
         return {
           ...t,
           subTasks: [...t.subTasks, { id: Math.random().toString(36).substr(2, 9), title: manualSubTask, completed: false }]
@@ -242,6 +310,7 @@ const App: React.FC = () => {
           if (Array.isArray(importedTasks)) {
             if (confirm(`Deseja importar ${importedTasks.length} tarefas? Isso substituirá sua lista atual.`)) {
               setTasks(importedTasks);
+              addHistoryEntry('update', 'Importação de Backup', `${importedTasks.length} tarefas restauradas.`);
             }
           } else {
             alert('Arquivo inválido: Formato de backup não reconhecido.');
@@ -261,6 +330,7 @@ const App: React.FC = () => {
     try {
       const optimized = await optimizeRenovation(tasks, strategy);
       setResult(optimized);
+      addHistoryEntry('optimization', 'Otimização AI Executada', `Estratégia: ${strategy}`);
     } catch (err) {
       alert("Erro ao otimizar cronograma.");
     } finally {
@@ -272,10 +342,11 @@ const App: React.FC = () => {
     if (isLoggedIn) {
       if (confirm('Deseja realmente sair da conta?')) {
         setIsLoggedIn(false);
+        addHistoryEntry('update', 'Logout', 'Usuário mestre desconectado.');
       }
     } else {
-      // Simulação de login
       setIsLoggedIn(true);
+      addHistoryEntry('update', 'Login', 'Usuário mestre conectado.');
       alert('Login realizado com sucesso!');
     }
   };
@@ -284,71 +355,97 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-32">
-      <header className="bg-slate-900 text-white py-6 px-4 shadow-lg sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-amber-500 p-2 rounded-xl text-slate-900 shadow-xl"><HardHat className="w-6 h-6" /></div>
-            <div>
-               <h1 className="text-xl font-heading uppercase tracking-widest leading-none">
-                 REFORM<span className="text-amber-500">AI</span>
-               </h1>
-               <div className="flex items-center gap-2 mt-1.5">
+      <div className="sticky top-0 z-50 shadow-lg">
+        {/* Cabeçalho Principal */}
+        <header className="bg-slate-900 text-white py-6 px-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="bg-amber-500 p-2 rounded-xl text-slate-900 shadow-xl"><HardHat className="w-6 h-6" /></div>
+              <div>
+                <h1 className="text-xl font-heading uppercase tracking-widest leading-none">
+                  REFORM<span className="text-amber-500">AI</span>
+                </h1>
+                <div className="flex items-center gap-2 mt-1.5">
                   <div className="h-1.5 w-24 bg-white/10 rounded-full overflow-hidden">
                     <div className="h-full bg-amber-500 transition-all duration-1000" style={{ width: `${stats.totalProgress}%` }}></div>
                   </div>
                   <span className="text-[10px] font-black">{stats.totalProgress}%</span>
-               </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowDashboard(!showDashboard)} 
+                title="Alternar Dashboard"
+                className={`p-2.5 rounded-xl transition-all ${showDashboard ? 'bg-amber-500 text-slate-900 shadow-lg' : 'bg-slate-800 text-slate-400'}`}
+              >
+                <TrendingUp className="w-5 h-5" />
+              </button>
+              
+              <input type="file" accept=".json" ref={importInputRef} onChange={handleImport} className="hidden" />
+              <button 
+                onClick={() => importInputRef.current?.click()} 
+                title="Importar Obra (JSON)"
+                className="p-2.5 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors"
+              >
+                <FileSpreadsheet className="w-5 h-5 text-amber-500" />
+              </button>
+
+              <button 
+                onClick={() => {
+                  const dataStr = JSON.stringify(tasks, null, 2);
+                  const blob = new window.Blob([dataStr], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob as Blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `backup_obra_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
+                  link.click();
+                }} 
+                title="Exportar Obra (JSON)"
+                className="p-2.5 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors"
+              >
+                <Download className="w-5 h-5 text-amber-500" />
+              </button>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setShowDashboard(!showDashboard)} 
-              title="Alternar Dashboard"
-              className={`p-2.5 rounded-xl transition-all ${showDashboard ? 'bg-amber-500 text-slate-900 shadow-lg' : 'bg-slate-800 text-slate-400'}`}
-            >
-              <TrendingUp className="w-5 h-5" />
-            </button>
-            
-            <input type="file" accept=".json" ref={importInputRef} onChange={handleImport} className="hidden" />
-            <button 
-              onClick={() => importInputRef.current?.click()} 
-              title="Importar Obra (JSON)"
-              className="p-2.5 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors"
-            >
-              <FileSpreadsheet className="w-5 h-5 text-amber-500" />
-            </button>
+        </header>
 
-            <button 
-              onClick={() => {
-                const dataStr = JSON.stringify(tasks, null, 2);
-                const blob = new window.Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob as Blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `backup_obra_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
-                link.click();
-              }} 
-              title="Exportar Obra (JSON)"
-              className="p-2.5 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors"
-            >
-              <Download className="w-5 h-5 text-amber-500" />
-            </button>
+        {/* Barra de Utilitários Inferior */}
+        <div className="bg-sky-100 border-b border-sky-200 py-2 px-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            {/* Seletor de Idiomas */}
+            <div className="flex gap-3">
+              {['en', 'sp', 'pt-br'].map(l => (
+                <button 
+                  key={l} 
+                  onClick={() => setLang(l)}
+                  className={`text-[10px] font-black uppercase transition-colors ${lang === l ? 'text-blue-700' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
 
-            {/* Novo Botão de Porta para Login / Logout */}
+            {/* Botão Entrar / Sign up */}
             <button 
               onClick={toggleLogin} 
-              title={isLoggedIn ? "Sair da Conta (Sign off)" : "Entrar / Cadastrar (Login / Sign up)"}
-              className="p-2.5 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors border border-white/5"
+              className="flex items-center gap-2 bg-white/80 hover:bg-white px-3 py-1 rounded-full border border-sky-200 shadow-sm transition-all"
             >
               {isLoggedIn ? (
-                <LogOut className="w-5 h-5 text-amber-500" />
+                <>
+                  <LogOut className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-[10px] font-black text-slate-700 uppercase">Sair</span>
+                </>
               ) : (
-                <LogIn className="w-5 h-5 text-amber-500" />
+                <>
+                  <LogIn className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-[10px] font-black text-slate-700 uppercase">Entrar / Cadastrar</span>
+                </>
               )}
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-4xl mx-auto px-4 mt-8 space-y-10">
         
@@ -360,46 +457,84 @@ const App: React.FC = () => {
                    <h2 className="text-amber-500 font-black uppercase tracking-[0.2em] text-[10px] mb-1">Status da Consolidação</h2>
                    <p className="text-3xl font-black uppercase">Painel REFORM<span className="text-amber-500">AI</span></p>
                 </div>
-                <div className="text-right">
-                   <p className="text-5xl font-black text-amber-500">{stats.totalProgress}%</p>
-                   <p className="text-[9px] text-slate-500 uppercase font-black">Execução Total</p>
-                </div>
-             </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="space-y-6">
-                   <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-white/10 pb-2">Progresso por Prioridade</h3>
-                   {Object.entries(stats.byPriority).map(([p, data]) => (
-                      <div key={p} className="space-y-1.5">
-                         <div className="flex justify-between text-[10px] font-black uppercase">
-                            <span className={p === 'Alta' ? 'text-red-400' : p === 'Média' ? 'text-amber-400' : 'text-blue-400'}>{p}</span>
-                            <span>{(data as any).progress}%</span>
-                         </div>
-                         <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all duration-1000 ${p === 'Alta' ? 'bg-red-500' : p === 'Média' ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${(data as any).progress}%` }}></div>
-                         </div>
-                      </div>
-                   ))}
-                </div>
-
-                <div className="space-y-6">
-                   <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-white/10 pb-2">Progresso por Cômodo</h3>
-                   <div className="max-h-56 overflow-y-auto pr-3 space-y-4 custom-scrollbar">
-                      {Object.entries(stats.byRoom).map(([room, data]) => (
-                         <div key={room} className="space-y-1">
-                            <div className="flex justify-between text-[10px] font-black uppercase">
-                               <span className="text-slate-300 truncate w-32">{room}</span>
-                               <span className="text-amber-500">{(data as any).progress}%</span>
-                            </div>
-                            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                               <div className="h-full bg-amber-500" style={{ width: `${(data as any).progress}%` }}></div>
-                            </div>
-                         </div>
-                      ))}
-                      {Object.keys(stats.byRoom).length === 0 && <p className="text-[10px] text-slate-600 italic">Nenhum cômodo ativo.</p>}
+                <div className="flex items-center gap-4">
+                   <button 
+                     onClick={() => setShowHistory(!showHistory)}
+                     className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-[10px] font-black uppercase ${showHistory ? 'bg-amber-500 text-slate-900' : 'bg-slate-800 text-amber-500 hover:bg-slate-700'}`}
+                   >
+                     <History className="w-4 h-4" /> Log de Obra
+                   </button>
+                   <div className="text-right">
+                      <p className="text-5xl font-black text-amber-500">{stats.totalProgress}%</p>
+                      <p className="text-[9px] text-slate-500 uppercase font-black">Execução Total</p>
                    </div>
                 </div>
              </div>
+
+             {showHistory ? (
+                <div className="animate-in slide-in-from-top-4 duration-300">
+                  <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-white/10 pb-2 mb-4">Histórico de Atividades Recentes</h3>
+                  <div className="max-h-80 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                    {history.length > 0 ? history.map(entry => (
+                      <div key={entry.id} className="bg-white/5 border border-white/5 p-4 rounded-2xl flex items-start gap-4 hover:bg-white/10 transition-all">
+                        <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
+                          entry.type === 'completion' ? 'bg-green-500' : 
+                          entry.type === 'creation' ? 'bg-blue-500' : 
+                          entry.type === 'optimization' ? 'bg-amber-500' :
+                          entry.type === 'deletion' ? 'bg-red-500' : 'bg-slate-400'
+                        }`}></div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-black uppercase text-amber-500">{entry.action}</span>
+                            <span className="text-[8px] font-bold text-slate-500 uppercase">{new Date(entry.timestamp).toLocaleString()}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-300 font-medium">{entry.details}</p>
+                          <div className="mt-2 text-[8px] font-black uppercase text-slate-600 flex items-center gap-1.5">
+                            <LogIn className="w-2.5 h-2.5" /> Responsável: {entry.user}
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="text-[10px] text-slate-600 italic py-4">Nenhuma atividade registrada ainda.</p>
+                    )}
+                  </div>
+                </div>
+             ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                   <div className="space-y-6">
+                      <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-white/10 pb-2">Progresso por Prioridade</h3>
+                      {Object.entries(stats.byPriority).map(([p, data]) => (
+                         <div key={p} className="space-y-1.5">
+                            <div className="flex justify-between text-[10px] font-black uppercase">
+                               <span className={p === 'Alta' ? 'text-red-400' : p === 'Média' ? 'text-amber-400' : 'text-blue-400'}>{p}</span>
+                               <span>{(data as any).progress}%</span>
+                            </div>
+                            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                               <div className={`h-full transition-all duration-1000 ${p === 'Alta' ? 'bg-red-500' : p === 'Média' ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${(data as any).progress}%` }}></div>
+                            </div>
+                         </div>
+                      ))}
+                   </div>
+
+                   <div className="space-y-6">
+                      <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-white/10 pb-2">Progresso por Cômodo</h3>
+                      <div className="max-h-56 overflow-y-auto pr-3 space-y-4 custom-scrollbar">
+                         {Object.entries(stats.byRoom).map(([room, data]) => (
+                            <div key={room} className="space-y-1">
+                               <div className="flex justify-between text-[10px] font-black uppercase">
+                                  <span className="text-slate-300 truncate w-32">{room}</span>
+                                  <span className="text-amber-500">{(data as any).progress}%</span>
+                               </div>
+                               <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                  <div className="h-full bg-amber-500" style={{ width: `${(data as any).progress}%` }}></div>
+                               </div>
+                            </div>
+                         ))}
+                         {Object.keys(stats.byRoom).length === 0 && <p className="text-[10px] text-slate-600 italic">Nenhum cômodo ativo.</p>}
+                      </div>
+                   </div>
+                </div>
+             )}
           </section>
         )}
 
@@ -411,7 +546,15 @@ const App: React.FC = () => {
                   <h2 className="text-xl font-black text-slate-800 uppercase">Novo Registro Técnico</h2>
                   <p className="text-slate-500 text-xs">Selecione a categoria para receber o desmembramento automático.</p>
                </div>
-               <button onClick={() => { if(confirm('Zerar toda a obra?')) setTasks([]) }} className="p-3 text-slate-200 hover:text-red-500 transition-colors"><Trash className="w-5 h-5"/></button>
+               <button 
+                  onClick={() => { 
+                    if(confirm('Zerar toda a obra?')) {
+                      setTasks([]);
+                      addHistoryEntry('deletion', 'Projeto Zerado', 'Todas as tarefas foram apagadas pelo usuário.');
+                    }
+                  }} 
+                  className="p-3 text-slate-200 hover:text-red-500 transition-colors"
+                ><Trash className="w-5 h-5"/></button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -613,7 +756,7 @@ const App: React.FC = () => {
                       )}
                       
                       <div className="mt-6 pt-6 border-t border-slate-100 flex justify-end">
-                         <button onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} className="text-[9px] font-black text-slate-300 hover:text-red-500 uppercase tracking-widest flex items-center gap-2">
+                         <button onClick={() => deleteTask(task.id)} className="text-[9px] font-black text-slate-300 hover:text-red-500 uppercase tracking-widest flex items-center gap-2">
                             <Trash className="w-3.5 h-3.5" /> Excluir Registro
                          </button>
                       </div>
@@ -731,7 +874,7 @@ const App: React.FC = () => {
          </div>
          <div className="text-right flex flex-col items-end">
             <p className="text-[9px] font-black text-slate-800 uppercase tracking-[0.3em] mb-1">REFORM<span className="text-amber-500">AI</span></p>
-            <span className="text-[7px] font-bold text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">Sync: Local DB V4</span>
+            <span className="text-[7px] font-bold text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">Sync: Local DB V5</span>
          </div>
       </footer>
     </div>
