@@ -81,7 +81,11 @@ export const translations = {
         signUp: "Cadastrar",
         alreadyHaveAccount: "Já tem conta? Entre aqui",
         dontHaveAccount: "Não tem conta? Cadastre-se",
-        selectProject: "Selecione uma Obra para começar"
+        selectProject: "Selecione uma Obra para começar",
+        existingProjects: "Projetos Atuais",
+        addNewProject: "Novo Projeto",
+        importProject: "Importar Obra (JSON)",
+        exportProject: "Exportar Obra (JSON)"
     },
     'en': {
         consolidationStatus: "Consolidation Status",
@@ -164,7 +168,11 @@ export const translations = {
         signUp: "Sign Up",
         alreadyHaveAccount: "Already have an account? Login here",
         dontHaveAccount: "Don't have an account? Sign up",
-        selectProject: "Select a Project to start"
+        selectProject: "Select a Project to start",
+        existingProjects: "Current Projects",
+        addNewProject: "New Project",
+        importProject: "Import Work (JSON)",
+        exportProject: "Export Work (JSON)"
     },
     'sp': {
         consolidationStatus: "Estado de Consolidación",
@@ -247,7 +255,11 @@ export const translations = {
         signUp: "Registrarse",
         alreadyHaveAccount: "¿Ya tienes cuenta? Entra aquí",
         dontHaveAccount: "¿No tienes cuenta? Regístrate",
-        selectProject: "Selecciona un Proyecto para empezar"
+        selectProject: "Selecciona un Proyecto para empezar",
+        existingProjects: "Proyectos Actuales",
+        addNewProject: "Nuevo Proyecto",
+        importProject: "Importar Obra (JSON)",
+        exportProject: "Exportar Obra (JSON)"
     }
 };
 
