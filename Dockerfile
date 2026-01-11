@@ -12,9 +12,18 @@ RUN npm install
 # Copiar código fonte
 COPY . .
 
-# Build do projeto (define API Key como argumento de build se necessário, ou variavel de ambiente no runtime)
+# Build do projeto (Variaveis de ambiente para o build do Vite)
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_OPENROUTER_API_KEY
 ARG VITE_GEMINI_API_KEY
+ARG VITE_OPENROUTER_MODEL
+
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_OPENROUTER_API_KEY=$VITE_OPENROUTER_API_KEY
 ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
+ENV VITE_OPENROUTER_MODEL=$VITE_OPENROUTER_MODEL
 
 RUN npm run build
 

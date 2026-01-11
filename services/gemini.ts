@@ -7,10 +7,10 @@ export const optimizeRenovation = async (
   tasks: Task[],
   strategy: OptimizationStrategy = 'fastest'
 ): Promise<OptimizationResult> => {
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("API Key não configurada (OPENROUTER_API_KEY ou GEMINI_API_KEY)");
+    throw new Error("API Key não configurada (VITE_OPENROUTER_API_KEY ou VITE_GEMINI_API_KEY)");
   }
 
   const strategyDescriptions = {
@@ -78,7 +78,7 @@ export const optimizeRenovation = async (
         "X-Title": "ReformAI",
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-001",
+        model: import.meta.env.VITE_OPENROUTER_MODEL || "google/gemini-2.0-flash-001",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
