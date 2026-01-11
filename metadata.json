@@ -1,0 +1,8 @@
+{
+  "name": "REFORMAI",
+  "description": "Um organizador de reformas inteligente que otimiza a sequência de tarefas para máxima eficiência e velocidade, atuando como um mestre de obras experiente.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
