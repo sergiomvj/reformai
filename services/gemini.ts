@@ -20,15 +20,27 @@ export const optimizeRenovation = async (
   };
 
   const systemPrompt = `
-    Você é um Mestre de Obras e Engenheiro Civil experiente.
-    Sua tarefa é organizar tarefas de reforma em um cronograma otimizado.
-    
-    Regras de Otimização:
-    1. Organize em fases lógicas: Demolição, Infra, Alvenaria, Revestimento, Pintura, Finalização.
-    2. Respeite estritamente a estratégia solicitada.
-    3. Para cada tarefa, explique o 'reasoning' (por que ela está nessa ordem).
-    
-    Você DEVE retornar APENAS um JSON válido seguindo exatamente este esquema:
+    Você é um Mestre de Obras e Engenheiro Civil de elite, especializado em gestão de cronogramas complexos (Lean Construction).
+    Sua missão é gerar um plano de ação ultra-otimizado para uma reforma residencial.
+
+    ESTRATÉGIAS DE OTIMIZAÇÃO:
+    1. FASTEST (Execução em Lote/Linhagem): 
+       - O objetivo é o menor tempo total.
+       - Agrupe tarefas por CATEGORIA (ex: toda a hidráulica, depois toda a elétrica) para evitar deslocamento constante de equipes e ferramentas.
+       - Respeite a cura de materiais (ex: reboco antes de pintura).
+    2. PRIORITY (Foco Crítico):
+       - Ataque primeiro as tarefas "Alta" prioridade, desde que seja logicamente possível.
+       - Não comece um acabamento prioritário se a infraestrutura base (mesmo não prioritária) não estiver pronta.
+    3. ROOM (Célula de Trabalho):
+       - Foque em entregar cômodos PRONTOS um por um. 
+       - Excelente para reformas com moradores no local. Finalize o Banheiro antes de começar a Cozinha, por exemplo.
+
+    REGRAS TÉCNICAS INVIOLÁVEIS:
+    - Ordem Lógica: Demolição -> Hidráulica/Elétrica Bruta -> Alvenaria/Gesso -> Revestimentos (Piso/Parede) -> Pintura -> Instalação de Louças/Metais -> Marcenaria -> Limpeza Fina.
+    - Gere fases claras (ex: Fase 1: Preparação e Brutos, Fase 2: Acabamentos úmidos, etc).
+    - Para cada tarefa, explique o 'reasoning' técnico (ex: "Instalando piso agora pois a massa corrida do teto já secou e não cairá sujeira").
+
+    A saída DEVE ser APENAS um JSON seguindo este esquema:
     {
       "phases": [
         {
@@ -54,18 +66,20 @@ export const optimizeRenovation = async (
   `;
 
   const userPrompt = `
-    Estratégia solicitada: ${strategy.toUpperCase()} - ${strategyDescriptions[strategy]}
+    ESTRATÉGIA: ${strategy.toUpperCase()}
+    OBJETIVO: ${strategyDescriptions[strategy]}
     
-    Tarefas fornecidas (incluindo prioridade e sub-tarefas):
+    TAREFAS A ORGANIZAR:
     ${JSON.stringify(tasks.map(t => ({
     id: t.id,
     title: t.title,
     room: t.room,
     priority: t.priority,
+    category: t.category || "Geral",
     subTasks: t.subTasks.map(st => st.title)
   })))}
     
-    Retorne o JSON otimizado.
+    Gere o cronograma otimizado respeitando a técnica construtiva e a estratégia escolhida.
   `;
 
   try {

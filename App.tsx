@@ -67,6 +67,7 @@ const App: React.FC = () => {
   const [showDashboard, setShowDashboard] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [manualSubTask, setManualSubTask] = useState('');
+  const [currentStrategy, setCurrentStrategy] = useState<OptimizationStrategy | null>(null);
 
   const videoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +182,7 @@ const App: React.FC = () => {
           priority: t.priority,
           sub_tasks: t.subTasks || [],
           description: t.description || '',
+          category: t.category || 'Geral',
           user_id: session.user.id,
           project_id: currentProject.id
         }));
@@ -263,6 +265,7 @@ const App: React.FC = () => {
       description: newTask.description,
       priority: newTask.priority,
       status: 'pending',
+      category: selectedCat || 'Geral',
       sub_tasks: autoSubTasks,
       photos: photoFiles.length > 0 ? [...photoFiles] : [],
       video_url: videoData || null
@@ -410,6 +413,7 @@ const App: React.FC = () => {
   const handleOptimize = async (strategy: OptimizationStrategy) => {
     if (tasks.length === 0) return;
     setOptimizing(true);
+    setCurrentStrategy(strategy);
     try {
       const optimized = await optimizeRenovation(tasks, strategy);
       setResult(optimized);
@@ -942,11 +946,28 @@ const App: React.FC = () => {
             <div className="space-y-8 md:space-y-12 animate-in slide-in-from-bottom-6 duration-700">
               <div className="bg-slate-900 text-white p-6 md:p-12 rounded-[2.5rem] md:rounded-[4rem] border-b-[8px] md:border-b-[15px] border-amber-500 shadow-2xl relative overflow-hidden">
                 <div className="flex justify-between items-start mb-6 md:mb-10">
-                  <h2 className="text-2xl md:text-4xl font-heading uppercase tracking-widest flex items-center gap-3 md:gap-5"><Sparkles className="text-amber-500 w-6 h-6 md:w-10 md:h-10" /> {translations[lang].masterPlan}</h2>
-                  <button onClick={() => setResult(null)} className="p-2 md:p-4 bg-white/10 rounded-full hover:bg-white/20 transition-all"><X className="w-5 h-5 md:w-6 md:h-6" /></button>
+                  <div className="space-y-2">
+                    <h2 className="text-2xl md:text-4xl font-heading uppercase tracking-widest flex items-center gap-3 md:gap-5"><Sparkles className="text-amber-500 w-6 h-6 md:w-10 md:h-10" /> {translations[lang].masterPlan}</h2>
+                    {currentStrategy && (
+                      <div className="inline-flex items-center gap-2 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30">
+                        <span className="text-[8px] md:text-[10px] font-black uppercase text-amber-500">{translations[lang].activeStrategy}:</span>
+                        <span className="text-[8px] md:text-[10px] font-black uppercase text-white">
+                          {currentStrategy === 'fastest' ? translations[lang].fastestExecution :
+                            currentStrategy === 'priority' ? translations[lang].byPriority :
+                              translations[lang].byRoom}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setResult(null)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all text-[9px] font-black uppercase"
+                  >
+                    <X className="w-4 h-4" /> {translations[lang].backToTasks}
+                  </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-                  <div>
+                  <div className="bg-white/5 p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] border border-white/10 text-center md:text-left">
                     <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 md:mb-2">{translations[lang].executionWindow}</p>
                     <p className="text-4xl md:text-6xl font-black text-amber-500">{result.totalEstimatedDays} {translations[lang].days}</p>
                   </div>

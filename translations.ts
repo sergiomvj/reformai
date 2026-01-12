@@ -87,6 +87,8 @@ export const translations = {
         importProject: "Importar Obra (JSON)",
         exportProject: "Exportar Obra (JSON)",
         backupRestore: "Backup e Restauração",
+        activeStrategy: "Estratégia Ativa",
+        backToTasks: "Voltar para Lista de Tarefas",
         dataManagement: "Gestão de Dados"
     },
     'en': {
@@ -176,6 +178,8 @@ export const translations = {
         importProject: "Import Work (JSON)",
         exportProject: "Export Work (JSON)",
         backupRestore: "Backup & Restore",
+        activeStrategy: "Active Strategy",
+        backToTasks: "Back to Task List",
         dataManagement: "Data Management"
     },
     'sp': {
@@ -265,6 +269,8 @@ export const translations = {
         importProject: "Importar Obra (JSON)",
         exportProject: "Exportar Obra (JSON)",
         backupRestore: "Backup y Restauración",
+        activeStrategy: "Estrategia Activa",
+        backToTasks: "Volver a la Lista de Tareas",
         dataManagement: "Gestión de Dados"
     }
 };

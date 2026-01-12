@@ -34,6 +34,7 @@ export interface Task {
   room: string;
   priority: Priority;
   status: 'pending' | 'completed';
+  category?: string;
   subTasks: SubTask[]; // Voltei para camelCase para manter compatibilidade com o código atual
   photos?: string[];
   video_url?: string;
